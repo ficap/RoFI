@@ -10,6 +10,7 @@
 #include "simplesim/simplesim.hpp"
 #include "simplesim_client.hpp"
 
+#include <QtWidgets/QApplication>
 
 std::shared_ptr< const rofi::configuration::Rofibot > readConfigurationFromFile(
         const std::string & cfgFileName )
@@ -42,6 +43,9 @@ std::shared_ptr< const rofi::configuration::Rofibot > readConfigurationFromFile(
 
 int main( int argc, char * argv[] )
 {
+    QApplication app( argc, argv );
+    setlocale(LC_NUMERIC,"C");
+
     Dim::Cli cli;
     auto & inputCfgFileName = cli.opt< std::string >( "<input_cfg_file>" )
                                       .desc( "Input configuration file" );
@@ -71,5 +75,6 @@ int main( int argc, char * argv[] )
     // Runs until the user closes the window
     client.run();
 
+    app.exec();
     std::cout << "Client ended\n";
 }

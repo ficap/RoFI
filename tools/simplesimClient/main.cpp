@@ -13,6 +13,7 @@
 #include "message_server.hpp"
 #include "simplesim_client.hpp"
 
+#include <QtWidgets/QApplication>
 
 struct OnConfigurationMsg
 {
@@ -37,11 +38,16 @@ struct OnConfigurationMsg
     rofi::simplesim::SimplesimClient & client;
 };
 
+
 int main( int argc, char * argv[] )
 {
+    QApplication app( argc, argv );
+    setlocale(LC_NUMERIC,"C");
+
     auto msgs_client = rofi::msgs::Client( argc, argv );
 
     auto client = rofi::simplesim::SimplesimClient();
+    app.exec();
 
     auto on_configuration_msg = OnConfigurationMsg{ .client = client };
     auto node = boost::make_shared< gazebo::transport::Node >();
