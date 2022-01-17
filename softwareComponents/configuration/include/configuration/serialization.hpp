@@ -59,6 +59,19 @@ namespace rofi::configuration::serialization {
         return m;
     }
 
+    /** \brief Adds attributes obtained from callback and returns true if some were added, false otherwise.
+     * \Return 
+     */
+    template< typename Callback, typename...Args >
+    inline bool maybeAddAttributes( nlohmann::json& js, Callback& attrCb, Args&&...args ) {
+        static_assert( std::is_invocable_r_v< nlohmann::json, Callback, Args ... > );
+        nlohmann::json j = attrCb( std::forward< Args >( args )... );
+        if ( !j.is_null() )
+            js[ "attributes" ] = j;
+
+        return js.count( "attributes" ) == 1;
+    }
+
     inline nlohmann::json jointToJSON( Joint& j ) {
         nlohmann::json res;
         res[ "positions" ] = nlohmann::json::array();
@@ -89,7 +102,8 @@ namespace rofi::configuration::serialization {
             j = component;
     }
 
-    inline nlohmann::json moduleToJSON( const UniversalModule& m ) {
+    template< typename Callback >
+    inline nlohmann::json moduleToJSON( const UniversalModule& m, Callback& attrCb ) {
         using namespace nlohmann;
         json j;
         j[ "type"  ] = "universal";
@@ -97,6 +111,7 @@ namespace rofi::configuration::serialization {
         j[ "beta"  ] = m.getBeta().deg();
         j[ "gamma" ] = m.getGamma().deg();
 
+        maybeAddAttributes( j, attrCb, m.parent, m.getId() );
         return { { std::to_string( m.getId() ), j } };
     }
 
@@ -111,13 +126,15 @@ namespace rofi::configuration::serialization {
         return UniversalModule( id, alpha, beta, gamma );
     } 
 
-    inline nlohmann::json moduleToJSON( const Pad& m ) {
+    template< typename Callback >
+    inline nlohmann::json moduleToJSON( const Pad& m, Callback& attrCb ) {
         using namespace nlohmann;
         json j;
         j[ "type"   ] = "pad";
         j[ "width"  ] = m.width;
         j[ "height" ] = m.height;
 
+        maybeAddAttributes( j, attrCb, m.parent, m.getId() );
         return { { std::to_string( m.getId() ), j } };
     }
 
@@ -130,11 +147,13 @@ namespace rofi::configuration::serialization {
         return Pad( id, width, height );
     }
 
-    inline nlohmann::json moduleToJSON( const UnknownModule& m ) {
+    template< typename Callback >
+    inline nlohmann::json moduleToJSON( const UnknownModule& m, Callback& attrCb ) {
         using namespace nlohmann;
         json j;
 
         j[ "type" ] = nullptr;
+        int i = 0;
         
         for ( const auto& c : m.components() ) {
             json js;
@@ -146,17 +165,24 @@ namespace rofi::configuration::serialization {
                 js[ "parent" ] = nullptr;
             js[ "type" ] = componentTypeToString( c.type );
 
+            maybeAddAttributes( js, attrCb, c.parent, i );
             j[ "components" ].push_back( js );
+            i++;
         }
 
+        i = 0;
         for ( auto& jt : m.joints() ) {
             json js;
             js[ "from" ] = jt.sourceComponent;
             js[ "to"   ] = jt.destinationComponent;
             js[ "joint" ] = jointToJSON( *jt.joint );
-            j[ "joints" ].push_back( js );   
+
+            maybeAddAttributes( js, attrCb, &m, i );
+            j[ "joints" ].push_back( js );
+            i++;
         }
 
+        maybeAddAttributes( j, attrCb, m.parent, m.getId() );
         return { { std::to_string( m.getId() ), j } };
     }
 
@@ -204,7 +230,8 @@ namespace rofi::configuration::serialization {
         return UnknownModule( components, 0, joints, id, std::nullopt );
     }
 
-    inline nlohmann::json toJSON( const Rofibot& bot ) {
+    template< typename Callback >
+    inline nlohmann::json toJSON( const Rofibot& bot, Callback attrCb ) {
         using namespace nlohmann;
         json res;
         res[ "modules" ] = json::array();
@@ -215,13 +242,13 @@ namespace rofi::configuration::serialization {
             json j;
             switch ( m.module->type ) {
                 case ModuleType::Universal:
-                    j = moduleToJSON( static_cast< const UniversalModule& >( *m.module ) );
+                    j = moduleToJSON( static_cast< const UniversalModule& >( *m.module ), attrCb );
                     break;
                 case ModuleType::Pad:
-                    j = moduleToJSON( static_cast< const Pad& >( *m.module ) );
+                    j = moduleToJSON( static_cast< const Pad& >( *m.module ), attrCb );
                     break;
                 case ModuleType::Unknown:
-                    j = moduleToJSON( static_cast< const UnknownModule& >( *m.module ) );
+                    j = moduleToJSON( static_cast< const UnknownModule& >( *m.module ), attrCb );
                     break;
                 case ModuleType::Cube:
                 default:
@@ -254,6 +281,10 @@ namespace rofi::configuration::serialization {
         }
 
         return res;
+    }
+
+    inline nlohmann::json toJSON( const Rofibot& bot ) {
+        return toJSON( bot, [](auto ...){ return nlohmann::json{}; } );
     }
 
     inline Rofibot fromJSON( const nlohmann::json& j ) {

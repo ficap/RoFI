@@ -3,6 +3,9 @@
 #include <configuration/serialization.hpp>
 #include <iostream>
 
+#include <atoms/util.hpp>
+#include <variant>
+
 
 namespace {
 
@@ -114,6 +117,18 @@ TEST_CASE( "UniversalModule" ) {
         CHECK( js[ "modules" ][ 0 ][ "0" ][ "alpha" ] == 90 );
         CHECK( js[ "modules" ][ 0 ][ "0" ][ "beta" ]  == 90 );
         CHECK( js[ "modules" ][ 0 ][ "0" ][ "gamma" ] == 180 );
+
+        CHECK( js[ "modules" ][ 0 ][ "0" ].count( "attributes" ) == 0 );
+
+        auto testAttrCallback = overload{
+            []( Rofibot* parent, ModuleId id ) {
+                return nlohmann::json::object( { { "Module", id } } );
+            },
+            []( auto ... ) { return nlohmann::json{}; }
+            };
+
+        js = toJSON( bot, testAttrCallback );
+        CHECK( js[ "modules" ][ 0 ][ "0" ].count( "attributes" ) == 1 );
     }
 
 
