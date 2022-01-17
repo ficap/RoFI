@@ -26,7 +26,7 @@ struct OnConfigurationMsg
         assert( configuration );
         configuration->prepare();
 
-        if ( auto [ ok, err_str ] = configuration->isValid( SimpleColision() ); !ok ) {
+        if ( auto [ ok, err_str ] = configuration->isValid( SimpleCollision() ); !ok ) {
             std::cerr << "Configuration not valid: '" << err_str << "'" << std::endl;
             return;
         }

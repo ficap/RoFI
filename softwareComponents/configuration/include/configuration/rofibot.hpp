@@ -416,7 +416,7 @@ public:
  * \brief Collision model taking into account only spherical collisions of the
  * shoes
  */
-class SimpleColision {
+class SimpleCollision {
 public:
     /**
      * \brief Decide if two modules collide
@@ -564,7 +564,7 @@ public:
      * \return A pair - first item indicates the validity, the second one gives
      * textual description of the reason for invalidity
      */
-    template < typename Collision >
+    template < typename Collision = SimpleCollision >
     std::pair< bool, std::string > isValid( Collision collisionModel = Collision() ) const {
         if ( !_prepared ) {
             return { false, "configuration is not prepared" };
@@ -595,7 +595,7 @@ public:
      * \return A pair - first item indicates the validity, the second one gives
      * textual description of the reason for invalidity
      */
-    template < typename Collision >
+    template < typename Collision = SimpleCollision >
     [[nodiscard]] std::pair< bool, std::string > validate( Collision collisionModel = Collision() ) {
         if ( !_prepared ) {
             try {
