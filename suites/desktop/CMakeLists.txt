@@ -190,3 +190,7 @@ endif()
 
 
 list_targets()
+list_dependencies()
+list_sources()
+
+
