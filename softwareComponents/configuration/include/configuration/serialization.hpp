@@ -196,10 +196,9 @@ namespace rofi::configuration::serialization {
         for ( const auto& c : j[ "components" ] ) {
             std::vector< int > inJoints  = c[ "in" ];
             std::vector< int > outJoints = c[ "out" ];
-            // TODO: Is it necessary to set parrent?
-            Module* parent  = nullptr;
             ComponentType t = stringToComponentType( c[ "type" ] );
-            components.push_back( Component( t, std::move( inJoints ), std::move( outJoints ) ) );
+            // Parent can be nullptr as it will be set in Module's constructor.
+            components.push_back( Component( t, inJoints, outJoints, nullptr ) );
         }
 
         for ( const auto& js : j[ "joints" ] ) {
@@ -290,7 +289,7 @@ namespace rofi::configuration::serialization {
     inline Rofibot fromJSON( const nlohmann::json& j ) {
         Rofibot bot;
 
-        for ( int i = 0; i < j[ "modules" ].size(); i++ ) {
+        for ( unsigned i = 0; i < j[ "modules" ].size(); i++ ) {
             std::string id = j[ "modules" ][ i ].begin().key(); // great...
             auto& jm = j[ "modules" ][ i ];
 

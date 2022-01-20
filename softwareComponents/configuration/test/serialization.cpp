@@ -84,9 +84,9 @@ TEST_CASE( "Pad" ) {
     }
 
     SECTION( "Multiple pads" ) {
-        auto& m1 = bot.insert( Pad( idCounter++, 23, 11 ) );
+        bot.insert( Pad( idCounter++, 23, 11 ) );
         auto& m2 = bot.insert( Pad( idCounter++, 5 ) );
-        auto& m3 = bot.insert( Pad( idCounter++, 1, 10 ) );
+        bot.insert( Pad( idCounter++, 1, 10 ) );
         connect< RigidJoint >( m2.components()[ 0 ], { 0, 0, 0 }, identity );
     }
 
@@ -121,7 +121,7 @@ TEST_CASE( "UniversalModule" ) {
         CHECK( js[ "modules" ][ 0 ][ "0" ].count( "attributes" ) == 0 );
 
         auto testAttrCallback = overload{
-            []( Rofibot* parent, ModuleId id ) {
+            []( Rofibot* /* parent */, ModuleId id ) {
                 return nlohmann::json::object( { { "Module", id } } );
             },
             []( auto ... ) { return nlohmann::json{}; }
@@ -247,11 +247,11 @@ TEST_CASE( "UnknownModule" ) {
     Rofibot bot;
 
     SECTION( "Basic tests" ) {
-        auto& m1 = bot.insert( UnknownModule( { Component{ ComponentType::Roficom }
-                                              , Component{ ComponentType::Roficom } }
-                                              , 2
-                                              , { makeComponentJoint< RigidJoint >( 0, 1, identity ) }
-                                              , idCounter++ ) );
+        bot.insert( UnknownModule( { Component{ ComponentType::Roficom, {}, {}, nullptr }
+                                   , Component{ ComponentType::Roficom, {}, {}, nullptr } }
+                                   , 2
+                                   , { makeComponentJoint< RigidJoint >( 0, 1, identity ) }
+                                   , idCounter++ ) );
 
         auto js = toJSON( bot );
 

@@ -61,8 +61,8 @@ public:
     bool operator==(const Module& other) const;
 
 private:
-    ID id;
     double alpha, beta, gamma;
+    ID id;
     friend Configuration;
     friend ConfigurationHash;
 };
