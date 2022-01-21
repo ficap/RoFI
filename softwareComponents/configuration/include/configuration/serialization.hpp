@@ -157,8 +157,6 @@ namespace rofi::configuration::serialization {
         
         for ( const auto& c : m.components() ) {
             json js;
-            js[ "in"  ] = c.inJoints;
-            js[ "out" ] = c.outJoints;
             if ( c.parent )
                 js[ "parent" ] = c.parent->getId();
             else
@@ -194,11 +192,9 @@ namespace rofi::configuration::serialization {
         std::vector< ComponentJoint > joints;
 
         for ( const auto& c : j[ "components" ] ) {
-            std::vector< int > inJoints  = c[ "in" ];
-            std::vector< int > outJoints = c[ "out" ];
             ComponentType t = stringToComponentType( c[ "type" ] );
             // Parent can be nullptr as it will be set in Module's constructor.
-            components.push_back( Component( t, inJoints, outJoints, nullptr ) );
+            components.push_back( Component( t, {}, {}, nullptr ) );
         }
 
         for ( const auto& js : j[ "joints" ] ) {
