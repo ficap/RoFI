@@ -60,10 +60,14 @@ namespace rofi::configuration::serialization {
     }
 
     /** \brief Adds attributes obtained from callback and returns true if some were added, false otherwise.
-     * \Return 
+     * 
+     * callback for a module gets: const reference to the Module itself
+     * callback for a joint  gets: const reference to the Joint itself and its index within the module
+     * callback for a component gets: const reference to the Component and an index of the component
+     * callback for a spacejoint or a roficom gets a const reference to the component
      */
     template< typename Callback, typename...Args >
-    inline bool maybeAddAttributes( nlohmann::json& js, Callback& attrCb, Args&&...args ) {
+    inline bool addAttributes( nlohmann::json& js, Callback& attrCb, Args&&...args ) {
         static_assert( std::is_invocable_r_v< nlohmann::json, Callback, Args ... > );
         nlohmann::json j = attrCb( std::forward< Args >( args )... );
         if ( !j.is_null() )
@@ -111,7 +115,7 @@ namespace rofi::configuration::serialization {
         j[ "beta"  ] = m.getBeta().deg();
         j[ "gamma" ] = m.getGamma().deg();
 
-        maybeAddAttributes( j, attrCb, m.parent, m.getId() );
+        addAttributes( j, attrCb, m );
         return { { std::to_string( m.getId() ), j } };
     }
 
@@ -134,7 +138,7 @@ namespace rofi::configuration::serialization {
         j[ "width"  ] = m.width;
         j[ "height" ] = m.height;
 
-        maybeAddAttributes( j, attrCb, m.parent, m.getId() );
+        addAttributes( j, attrCb, m );
         return { { std::to_string( m.getId() ), j } };
     }
 
@@ -163,7 +167,7 @@ namespace rofi::configuration::serialization {
                 js[ "parent" ] = nullptr;
             js[ "type" ] = componentTypeToString( c.type );
 
-            maybeAddAttributes( js, attrCb, c.parent, i );
+            addAttributes( js, attrCb, c, i );
             j[ "components" ].push_back( js );
             i++;
         }
@@ -175,12 +179,12 @@ namespace rofi::configuration::serialization {
             js[ "to"   ] = jt.destinationComponent;
             js[ "joint" ] = jointToJSON( *jt.joint );
 
-            maybeAddAttributes( js, attrCb, &m, i );
+            addAttributes( js, attrCb, jt, i );
             j[ "joints" ].push_back( js );
             i++;
         }
 
-        maybeAddAttributes( j, attrCb, m.parent, m.getId() );
+        addAttributes( j, attrCb, m );
         return { { std::to_string( m.getId() ), j } };
     }
 
@@ -260,6 +264,7 @@ namespace rofi::configuration::serialization {
             onUMTranslateDocs( j[ "fromCon" ], bot.getModule( rj.sourceModule )->type, rj.sourceConnector );
             onUMTranslateDocs( j[ "toCon" ]  , bot.getModule( rj.destModule )->type  , rj.destConnector );
             j[ "orientation" ] = orientationToString( rj.orientation );
+            addAttributes( j, attrCb, rj );
             res[ "moduleJoints" ].push_back( j );
         }
 
@@ -272,6 +277,7 @@ namespace rofi::configuration::serialization {
             j[ "point" ][ "z" ] = sj.refPoint[ 2 ];
             assert( sj.joint.get() && "joint is nullptr" );
             j[ "joint" ] = jointToJSON( *sj.joint );
+            addAttributes( j, attrCb, sj );
             res[ "spaceJoints" ].push_back( j );
         }
 

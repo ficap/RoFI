@@ -117,20 +117,7 @@ TEST_CASE( "UniversalModule" ) {
         CHECK( js[ "modules" ][ 0 ][ "0" ][ "alpha" ] == 90 );
         CHECK( js[ "modules" ][ 0 ][ "0" ][ "beta" ]  == 90 );
         CHECK( js[ "modules" ][ 0 ][ "0" ][ "gamma" ] == 180 );
-
-        CHECK( js[ "modules" ][ 0 ][ "0" ].count( "attributes" ) == 0 );
-
-        auto testAttrCallback = overload{
-            []( Rofibot* /* parent */, ModuleId id ) {
-                return nlohmann::json::object( { { "Module", id } } );
-            },
-            []( auto ... ) { return nlohmann::json{}; }
-            };
-
-        js = toJSON( bot, testAttrCallback );
-        CHECK( js[ "modules" ][ 0 ][ "0" ].count( "attributes" ) == 1 );
     }
-
 
     SECTION( "Signle With rotational joint" ) {
         auto& m1 = bot.insert( UniversalModule( idCounter++, 0_deg, 0_deg, 0_rad ) );
@@ -281,6 +268,131 @@ TEST_CASE( "Mixin'" ) {
         CHECK( js[ "modules" ].size() == 3 );
         CHECK( js[ "moduleJoints" ].size() == 2 );
         CHECK( js == toJSON( fromJSON( js ) ) );
+    }
+}
+
+TEST_CASE( "Attributes" ) {
+    Rofibot bot;
+
+    SECTION( "Single Universal Module" ) {
+        auto& m1 = bot.insert( UniversalModule( 0, 90_deg, 90_deg, 180_deg ) );
+        connect< RigidJoint >( m1.bodies()[ 0 ], { 0, 0, 0 }, identity );
+        auto js = toJSON( bot );
+
+        CHECK( js[ "modules" ][ 0 ][ "0" ][ "alpha" ] == 90 );
+        CHECK( js[ "modules" ][ 0 ][ "0" ][ "beta" ]  == 90 );
+        CHECK( js[ "modules" ][ 0 ][ "0" ][ "gamma" ] == 180 );
+
+        CHECK( js[ "modules" ][ 0 ][ "0" ].count( "attributes" ) == 0 );
+
+        auto testAttrCallback = overload{
+            []( const UniversalModule& m ) {
+                return nlohmann::json::object( { { "UniversalModule", m.getId() } } );
+            },
+            []( auto ... ) { return nlohmann::json{}; }
+        };
+
+        js = toJSON( bot, testAttrCallback );
+        CHECK( js[ "modules" ][ 0 ][ "0" ].count( "attributes" ) == 1 );
+    }
+
+    SECTION( "Different modules – different messages" ) {
+        auto testAttrCallback = overload{
+            []( const Module& m ) {
+                return nlohmann::json::object( { { "Not an UniversalModule", m.getId() } } );
+            },
+            []( const UniversalModule& m ) { // This will get prioritized in case of the UM before the above
+                return nlohmann::json::object( { { "UniversalModule", m.getId() } } );
+            },
+            []( const ComponentJoint&, int ) { return nlohmann::json{}; },
+            []( const Component&, int )      { return nlohmann::json{}; },
+            []( const RoficomJoint& ) { return nlohmann::json{}; },
+            []( const SpaceJoint&   ) { return nlohmann::json{}; }
+        };
+
+        bot.insert( UniversalModule( 0, 0_deg, 0_deg, 0_deg ) );
+        bot.insert( UniversalModule( 42, 0_deg, 0_deg, 0_deg ) );
+        bot.insert( Pad( 66, 2, 5 ) );
+
+        auto js = toJSON( bot, testAttrCallback );
+
+        REQUIRE( js[ "modules" ][ 0 ][  "0" ].count( "attributes" ) == 1 );
+        REQUIRE( js[ "modules" ][ 1 ][ "42" ].count( "attributes" ) == 1 );
+        REQUIRE( js[ "modules" ][ 2 ][ "66" ].count( "attributes" ) == 1 );
+        // Todo: This is really ugly. Is there a better way?
+        CHECK( js[ "modules" ][ 0 ][  "0" ][ "attributes" ].items().begin().key() == "UniversalModule" );
+        CHECK( js[ "modules" ][ 0 ][  "0" ][ "attributes" ].items().begin().value() == 0 );
+        CHECK( js[ "modules" ][ 1 ][ "42" ][ "attributes" ].items().begin().key() == "UniversalModule" );
+        CHECK( js[ "modules" ][ 1 ][ "42" ][ "attributes" ].items().begin().value() == 42 );
+        CHECK( js[ "modules" ][ 2 ][ "66" ][ "attributes" ].items().begin().key() == "Not an UniversalModule" );
+        CHECK( js[ "modules" ][ 2 ][ "66" ][ "attributes" ].items().begin().value() == 66 );
+
+        for ( auto j : js[ "moduleJoints" ] )
+            CHECK( j.count( "attributes" ) == 0 );
+
+        for ( auto s : js[ "spaceJoints" ] )
+            CHECK( s.count( "attributes" ) == 0 );
+    }
+
+    SECTION( "Everything gets an attribute" ) {
+        auto testAttrCallback = overload{
+            // empty objects or arrays should not be discarded as null should
+            []( const ComponentJoint& ) {
+                return nlohmann::json::array();
+            },
+            []( const SpaceJoint& ) {
+                return nlohmann::json::object();
+            },
+            []( auto ... ) {
+                return "test-attr";
+            }
+        };
+
+        auto& pad = bot.insert( Pad( 42, 10, 8 ) );
+        auto& um1 = static_cast< UniversalModule& >( bot.insert( UniversalModule( 66, 0_deg, 0_deg, 180_deg ) ) );
+        auto& um2 = static_cast< UniversalModule& >( bot.insert( UniversalModule(  0, 0_deg, 0_deg, 0_deg   ) ) );
+
+        connect( pad.components()[ 0 ], um1.getConnector( "A-Z" ), Orientation::North );
+        connect( um1.getConnector( "B-Z" ), um2.getConnector( "A+X" ), Orientation::West );
+
+        auto js = toJSON( bot, testAttrCallback );
+
+        for ( auto m : js[ "modules" ] ) {
+            CHECK( m.items().begin().value().count( "attributes" ) == 1 );
+        }
+
+        for ( auto j : js[ "moduleJoints" ] )
+            CHECK( j.count( "attributes" ) == 1 );
+
+        for ( auto s : js[ "spaceJoints" ] )
+            CHECK( s.count( "attributes" ) == 1 );
+    }
+
+    SECTION( "Nothing gets an attribute" ) {
+        auto testAttrCallback = overload{
+            []( auto ... ) {
+                return nlohmann::json{};
+            }
+        };
+
+        auto& pad = bot.insert( Pad( 42, 10, 8 ) );
+        auto& um1 = static_cast< UniversalModule& >( bot.insert( UniversalModule( 66, 0_deg, 0_deg, 180_deg ) ) );
+        auto& um2 = static_cast< UniversalModule& >( bot.insert( UniversalModule(  0, 0_deg, 0_deg, 0_deg   ) ) );
+
+        connect( pad.components()[ 0 ], um1.getConnector( "A-Z" ), Orientation::North );
+        connect( um1.getConnector( "B-Z" ), um2.getConnector( "A+X" ), Orientation::West );
+
+        auto js = toJSON( bot, testAttrCallback );
+
+        for ( auto m : js[ "modules" ] ) {
+            CHECK( m.items().begin().value().count( "attributes" ) == 0 );
+        }
+
+        for ( auto j : js[ "moduleJoints" ] )
+            CHECK( j.count( "attributes" ) == 0 );
+
+        for ( auto s : js[ "spaceJoints" ] )
+            CHECK( s.count( "attributes" ) == 0 );
     }
 }
 
