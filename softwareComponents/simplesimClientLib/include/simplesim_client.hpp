@@ -22,16 +22,19 @@
 #include "configuration/rofibot.hpp"
 #include "configuration/serialization.hpp"
 #include "legacy/configuration/IO.h"
+#include "changecolor.hpp"
 
 #include <QMainWindow>
 #include <QTimer>
 #include <QTreeWidgetItem>
+#include <QWidgetItem>
 
 #define vtkTypeMacro_( thisClass, superClass ) \
     vtkTypeMacro( thisClass, superClass ) static_assert( true, "require semicolon" )
 
 namespace Ui {
     class SimplesimClient;
+    class ChangeColor;
 }
 
 namespace rofi::simplesim
@@ -86,6 +89,8 @@ public:
         assert( _renderWindow.Get() != nullptr );
         assert( _renderWindowInteractor.Get() != nullptr );
 
+        initInfoTree( *getCurrentConfig() );
+
         renderCurrentConfiguration();
 
         //_renderWindowInteractor->Start();
@@ -102,19 +107,29 @@ public:
         } );
     }
 
-protected:
     void timerEvent( QTimerEvent *event );
+
+    void colorModule( rofi::configuration::ModuleId module,
+                      double color[ 3 ],
+                      int component = -1 );
+public slots:
+    void setColor( int color );
 
 private slots:
 
+    void itemSelected( QTreeWidgetItem* selected );
+
     void pauseButton();
 
-    void speedChanged( int speed );
+    void changeColorWindow();
+ //   void speedChanged( int speed );
 
 private:
     Ui::SimplesimClient* ui;
 
-    QTreeWidgetItem* configToQItem( const rofi::configuration::Rofibot& rofibot );
+    void initInfoTree( const rofi::configuration::Rofibot& rofibot );
+
+    void updateInfoTree( const rofi::configuration::Rofibot& rofibot );
 
     std::shared_ptr< const rofi::configuration::Rofibot > getCurrentConfig() const
     {
@@ -128,6 +143,7 @@ private:
     atoms::Guarded< std::shared_ptr< const rofi::configuration::Rofibot > > _currentConfiguration;
     std::shared_ptr< const rofi::configuration::Rofibot > _lastRenderedConfiguration;
 
+    std::unique_ptr< ChangeColor > _changeColorWindow;
     vtkNew< vtkRenderer > _renderer;
     vtkNew< vtkRenderWindow > _renderWindow;
     vtkNew< vtkInteractorStyleTrackballCamera > _interactorStyle;
@@ -136,7 +152,10 @@ private:
 
     int _timer;
 
-    bool paused = false;
+    bool _paused = false;
+
+    int _lastModule = -1;
+    double _lastColor[ 3 ];
 
     std::map< rofi::configuration::ModuleId, detail::ModuleRenderInfo > _moduleRenderInfos;
 };
