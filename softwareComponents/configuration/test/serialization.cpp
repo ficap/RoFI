@@ -283,7 +283,7 @@ TEST_CASE( "Attributes" ) {
         CHECK( js[ "modules" ][ 0 ][ "0" ][ "beta" ]  == 90 );
         CHECK( js[ "modules" ][ 0 ][ "0" ][ "gamma" ] == 180 );
 
-        CHECK( js[ "modules" ][ 0 ][ "0" ].count( "attributes" ) == 0 );
+        CHECK( !js[ "modules" ][ 0 ][ "0" ].contains( "attributes" ) );
 
         auto testAttrCallback = overload{
             []( const UniversalModule& m ) {
@@ -293,7 +293,7 @@ TEST_CASE( "Attributes" ) {
         };
 
         js = toJSON( bot, testAttrCallback );
-        CHECK( js[ "modules" ][ 0 ][ "0" ].count( "attributes" ) == 1 );
+        CHECK( js[ "modules" ][ 0 ][ "0" ].contains( "attributes" ) );
     }
 
     SECTION( "Different modules – different messages" ) {
@@ -316,9 +316,9 @@ TEST_CASE( "Attributes" ) {
 
         auto js = toJSON( bot, testAttrCallback );
 
-        REQUIRE( js[ "modules" ][ 0 ][  "0" ].count( "attributes" ) == 1 );
-        REQUIRE( js[ "modules" ][ 1 ][ "42" ].count( "attributes" ) == 1 );
-        REQUIRE( js[ "modules" ][ 2 ][ "66" ].count( "attributes" ) == 1 );
+        REQUIRE( js[ "modules" ][ 0 ][  "0" ].contains( "attributes" ) );
+        REQUIRE( js[ "modules" ][ 1 ][ "42" ].contains( "attributes" ) );
+        REQUIRE( js[ "modules" ][ 2 ][ "66" ].contains( "attributes" ) );
         // Todo: This is really ugly. Is there a better way?
         CHECK( js[ "modules" ][ 0 ][  "0" ][ "attributes" ].items().begin().key() == "UniversalModule" );
         CHECK( js[ "modules" ][ 0 ][  "0" ][ "attributes" ].items().begin().value() == 0 );
@@ -328,10 +328,10 @@ TEST_CASE( "Attributes" ) {
         CHECK( js[ "modules" ][ 2 ][ "66" ][ "attributes" ].items().begin().value() == 66 );
 
         for ( auto j : js[ "moduleJoints" ] )
-            CHECK( j.count( "attributes" ) == 0 );
+            CHECK( !j.contains( "attributes" ) );
 
         for ( auto s : js[ "spaceJoints" ] )
-            CHECK( s.count( "attributes" ) == 0 );
+            CHECK( !s.contains( "attributes" ) );
     }
 
     SECTION( "Everything gets an attribute" ) {
@@ -358,14 +358,14 @@ TEST_CASE( "Attributes" ) {
         auto js = toJSON( bot, testAttrCallback );
 
         for ( auto m : js[ "modules" ] ) {
-            CHECK( m.items().begin().value().count( "attributes" ) == 1 );
+            CHECK( m.items().begin().value().contains( "attributes" ) );
         }
 
         for ( auto j : js[ "moduleJoints" ] )
-            CHECK( j.count( "attributes" ) == 1 );
+            CHECK( j.contains( "attributes" ) );
 
         for ( auto s : js[ "spaceJoints" ] )
-            CHECK( s.count( "attributes" ) == 1 );
+            CHECK( s.contains( "attributes" ) );
     }
 
     SECTION( "Nothing gets an attribute" ) {
@@ -385,14 +385,14 @@ TEST_CASE( "Attributes" ) {
         auto js = toJSON( bot, testAttrCallback );
 
         for ( auto m : js[ "modules" ] ) {
-            CHECK( m.items().begin().value().count( "attributes" ) == 0 );
+            CHECK( !m.items().begin().value().contains( "attributes" ) );
         }
 
         for ( auto j : js[ "moduleJoints" ] )
-            CHECK( j.count( "attributes" ) == 0 );
+            CHECK( !j.contains( "attributes" ) );
 
         for ( auto s : js[ "spaceJoints" ] )
-            CHECK( s.count( "attributes" ) == 0 );
+            CHECK( !s.contains( "attributes" ) );
     }
 }
 

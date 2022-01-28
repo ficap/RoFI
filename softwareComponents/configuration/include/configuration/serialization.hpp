@@ -31,12 +31,13 @@ namespace rofi::configuration::serialization {
             assert( false && "String does not represent a component type" );
     }
 
-    template< typename M > requires std::derived_from< M, Module >
+    template< std::derived_from< Module > M >
     M moduleFromJSON( const nlohmann::json& j, ModuleId id );
 
-    template< typename M > requires std::derived_from< M, Module >
+    template< std::derived_from< Module > M >
     M moduleFromJSON( const nlohmann::json& j ) {
-        assert( j.is_object() && ++j.begin() == j.end() && "json is not a single object" );
+        if ( !j.is_object() || ++j.begin() != j.end() )
+            throw std::runtime_error( "json is not a single object" );
 
         return moduleFromJSON< M >( j.begin().value(), stoi( j.begin().key() ) );
     }
@@ -107,7 +108,7 @@ namespace rofi::configuration::serialization {
     }
 
     template< typename Callback >
-    inline nlohmann::json moduleToJSON( const UniversalModule& m, Callback& attrCb ) {
+    inline nlohmann::json moduleToJSON( const UniversalModule& m, Callback&& attrCb ) {
         using namespace nlohmann;
         json j;
         j[ "type"  ] = "universal";
@@ -120,7 +121,7 @@ namespace rofi::configuration::serialization {
     }
 
     template<>
-    inline UniversalModule moduleFromJSON( const nlohmann::json& j, ModuleId id ) {
+    inline UniversalModule moduleFromJSON< UniversalModule >( const nlohmann::json& j, ModuleId id ) {
         assert( j[ "type" ] == "universal" );
 
         Angle alpha = Angle::deg( j[ "alpha" ] );
@@ -143,7 +144,7 @@ namespace rofi::configuration::serialization {
     }
 
     template<>
-    inline Pad moduleFromJSON( const nlohmann::json& j, ModuleId id ) {
+    inline Pad moduleFromJSON< Pad >( const nlohmann::json& j, ModuleId id ) {
         assert( j[ "type" ] == "pad" );
         
         int width  = j[ "width" ];
@@ -189,7 +190,7 @@ namespace rofi::configuration::serialization {
     }
 
     template<>
-    inline UnknownModule moduleFromJSON( const nlohmann::json& j, ModuleId id ) {
+    inline UnknownModule moduleFromJSON< UnknownModule >( const nlohmann::json& j, ModuleId id ) {
         assert( j[ "type" ] && "type is not null" );
 
         std::vector< Component > components;
@@ -291,7 +292,7 @@ namespace rofi::configuration::serialization {
     inline Rofibot fromJSON( const nlohmann::json& j ) {
         Rofibot bot;
 
-        for ( unsigned i = 0; i < j[ "modules" ].size(); i++ ) {
+        for ( size_t i = 0; i < j[ "modules" ].size(); i++ ) {
             std::string id = j[ "modules" ][ i ].begin().key(); // great...
             auto& jm = j[ "modules" ][ i ];
 
