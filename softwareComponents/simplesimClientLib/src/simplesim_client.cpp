@@ -29,12 +29,11 @@
 #include "atoms/resources.hpp"
 
 #include "ui_mainwindow.h"
-//#include "ui_changecolor.h"
 
 using rofi::simplesim::ChangeColor;
 using rofi::simplesim::SimplesimClient;
 using rofi::simplesim::detail::ModuleRenderInfo;
-
+using rofi::configuration::UniversalModule;
 using namespace rofi::configuration::matrices;
 
 vtkSmartPointer< vtkMatrix4x4 > convertMatrix( const Matrix & m )
@@ -116,7 +115,7 @@ vtkSmartPointer< vtkPolyDataMapper > getComponentMapper( const Matrix & cPositio
     auto componentActors = std::vector< vtkSmartPointer< vtkActor > >();
     componentActors.reserve( newModule.components().size() );
     const auto & components = newModule.components();
-    for ( int i = 0; i != components.size(); i++ ) {
+    for ( int i = 0; i != static_cast< int >( components.size() ); i++ ) {
         auto frameActor = vtkSmartPointer< vtkActor >::New();
         frameActor->GetProperty()->SetColor( getModuleColor( newModule.getId() ).data() );
         frameActor->GetProperty()->SetOpacity( 1.0 );
@@ -172,7 +171,7 @@ void updateModulePositionInScene( const rofi::configuration::Module & newModule,
     const auto & components = newModule.components();
     assert( moduleRenderInfo.componentActors.size() == components.size() );
 
-    for ( int i = 0; i != components.size(); i++ ) {
+    for ( int i = 0; i != static_cast< int >( components.size() ); i++ ) {
         const auto & componentActor = moduleRenderInfo.componentActors[ i ];
 
         auto cPosition = newModule.getComponentPosition( i, mPosition );
@@ -330,7 +329,7 @@ SimplesimClient::~SimplesimClient(){
     delete ui;
 }
 
-void SimplesimClient::timerEvent( QTimerEvent *event ){
+void SimplesimClient::timerEvent( QTimerEvent* /* event */ ){
     renderCurrentConfiguration();
 }
 
@@ -372,6 +371,8 @@ void SimplesimClient::itemSelected( QTreeWidgetItem* selected ){
         module = ui->treeWidget->indexOfTopLevelItem( selected->parent()->parent() );
         int component =
             ui->treeWidget->topLevelItem( module )->child( 0 )->indexOfChild( selected );
+        _moduleRenderInfos[ module ].componentActors[ component ]
+            ->GetProperty()->GetColor( _lastColor );
         colorModule( module, white, component );
     }
     _lastModule = module;
@@ -391,12 +392,13 @@ void SimplesimClient::pauseButton(){
 
 void SimplesimClient::setColor( int color ){
     const auto& to_color = _changeColorWindow->to_color;
-    for( int i = 0; i < to_color.size(); ++i ){
+    for( int i = 0; i < static_cast< int >( to_color.size() ); ++i ){
         if( to_color[ i ] ){
             colorModule( i, getModuleColor( color ).data() );
         }
     }
 }
+
 void SimplesimClient::changeColorWindow(){
     if( !_changeColorWindow ){
         _changeColorWindow =
@@ -433,6 +435,15 @@ void SimplesimClient::initInfoTree( const rofi::configuration::Rofibot& rofibot 
         for( const auto& c : moduleInfo.module->components() ){
             std::string comp = rofi::configuration::serialization::componentTypeToString( c.type );
             new QTreeWidgetItem( components, { QString( comp.c_str() )} );
+        }
+        if( auto* um = dynamic_cast< UniversalModule* >(
+            moduleInfo.module.get() ) )
+        {
+            for( int j = 0; j < 6; ++j ){
+                std::string connector = um->translateComponent( j );
+                ui->treeWidget->topLevelItem( i )->child( 0 )->child( j )
+                    ->setText( 0, connector.c_str() );
+            }
         }
         if( moduleInfo.position ){
             std::string pos = "Position:\n" + IO::toString( *moduleInfo.position );
